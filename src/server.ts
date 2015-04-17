@@ -2,6 +2,7 @@
 
 import * as express from 'express';
 import * as fs from 'fs';
+import * as path from 'path';
 import * as jsdom from 'jsdom';
 import * as Q from 'q';
 
@@ -16,8 +17,8 @@ function loadTranslatorFromFile(path: string) {
 	return translator.loadTranslator(src);
 }
 
-let oupTranslator = loadTranslatorFromFile('../zotero-translators/Oxford University Press.js');
-let OUP_TEST_URL = 'http://ukcatalogue.oup.com/product/9780195113679.do';
+let oupTranslatorPath = path.resolve(`${__dirname}/../translators/Oxford University Press.js`);
+let oupTranslator = loadTranslatorFromFile(oupTranslatorPath);
 
 function fetchItemsAtUrl(url: string) {
 	return fetch(url).then(response => {
