@@ -1,5 +1,6 @@
-// Require dependencies
 var lodash = require('lodash');
+var fetch = require('isomorphic-fetch');
+var urlLib = require('url');
 
 /*****************************/
 
@@ -27,26 +28,17 @@ var XPathExtractor = exports.xpath = function XPathExtractor(elements, xpath, na
     }
 
     return lodash.reduce(elements, function(results, element) {
-        var root = element.ownerDocument ? element.ownerDocument : element.documentElement ? element : null,
-            xpathObject, newElement;
+		var root = element.ownerDocument;
+		var newElement;
 
         if (!root) {
             throw new Error('xpath: First argument must be either element(s) or document(s)');
         }
 
-        if ("evaluate" in root) {
-            try {
-                var xpathObject = root.evaluate(xpath, element, nsResolver, 5 /*ORDERED_NODE_ITERATOR_TYPE*/, null);
-            } catch (e) {
-                throw new Error(e.name + ': ' + e.message);
-            }
-
-            while (newElement = xpathObject.iterateNext()) {
-                results.push(newElement);
-            }
-        } else {
-            throw new Error('xpath: XPath functionality not available');
-        }
+		var xpathObject = root.evaluate(xpath, element, nsResolver, 5 /*ORDERED_NODE_ITERATOR_TYPE*/, null);
+		while (newElement = xpathObject.iterateNext()) {
+			results.push(newElement);
+		}
 
         return results;
 
@@ -173,3 +165,20 @@ var cleanAuthor = exports.cleanAuthor = function cleanAuthor(author, type, useCo
 
     return { firstName: firstName, lastName: lastName, creatorType: type };
 }
+
+exports.currentUrl = '';
+
+// performs an async network GET request
+exports.doGet = function(relativeUrl, callback) {
+	var absoluteUrl = urlLib.resolve(exports.currentUrl, relativeUrl);
+	console.log('fetching', absoluteUrl);
+	return fetch(absoluteUrl).then(function(response) {
+		return response.text();
+	}).then(function(body) {
+		callback(body);
+	}).catch(function(err) {
+		console.error('Failed to fetch', absoluteUrl, err.toString(), err.stack);
+		callback('');
+	});
+}
+

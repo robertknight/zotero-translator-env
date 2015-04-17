@@ -2,23 +2,10 @@ import * as vm from 'vm';
 import * as util from 'util';
 import * as Q from 'q';
 
-import * as fake_dom from './fake_dom';
-import * as zotero from './translator_interfaces';
-
-var ZoteroUtilities = require('./ZoteroUtilities');
-var xpath = require('jsdom/lib/jsdom/level3/xpath');
 var stack_trace = require('stack-trace');
 
-let savedItems: Q.Promise<zotero.ZoteroItem>[] = [];
-let addItem = (item: Q.Promise<zotero.ZoteroItem>) => {
-	savedItems.push(item);
-};
-
-interface ZoteroUtilities {
-	trimInternal(str: string): string;
-	cleanAuthor(name: string, role: string): zotero.ZoteroCreator;
-	xpathText(doc: Document, query: string): string;
-}
+import * as zotero from './translator_interfaces';
+import * as translator_environment from './translator_environment';
 
 function logTranslatorError(code: string, err: Error) {
 	let trace = stack_trace.parse(err);
@@ -30,15 +17,19 @@ function logTranslatorError(code: string, err: Error) {
 export class Translator {
 	metadata: zotero.TranslatorMetadata;
 	private translator: zotero.TranslatorImpl;
+	private environment: translator_environment.TranslatorGlobal;
 
 	constructor(metadata: zotero.TranslatorMetadata,
-	            translator: zotero.TranslatorImpl) {
+	            translator: zotero.TranslatorImpl,
+				environment: translator_environment.TranslatorGlobal) {
 		this.metadata = metadata;
 		this.translator = translator;
+		this.environment = environment;
 	}
 
 	detectAvailableItemType(document: Document, url: string): string {
 		try {
+			this.environment.Zotero.Utilities.currentUrl = url;
 			return this.translator.detectWeb(document, url);
 		} catch (err) {
 			logTranslatorError(this.translator.code, err);
@@ -49,6 +40,7 @@ export class Translator {
 	processPage(document: Document, url: string): Q.Promise<zotero.ZoteroItem>[] {
 		savedItems = [];
 		try {
+			this.environment.Zotero.Utilities.currentUrl = url;
 			this.translator.doWeb(document, url);
 			return savedItems;
 		} catch (err) {
@@ -58,78 +50,20 @@ export class Translator {
 	}
 }
 
-interface ZoteroGlobal {
-	Item: {
-		new (type: string): zotero.ZoteroItem;
-	},
-	Utilities: ZoteroUtilities
-	debug(message: any);
-}
-
-interface TranslatorEnvironment {
-	exports: zotero.TranslatorImpl;
-	Zotero: ZoteroGlobal;
-	Z: ZoteroGlobal;
-	ZU: ZoteroUtilities;
-	addItem(item: Q.Promise<zotero.ZoteroItem>);
-}
-
-class ZoteroUtilitiesImpl {
-	static trimInternal(str: string) {
-		return str.trim();
-	}
-
-	static cleanAuthor(name: string, role: string) {
-		let nameParts = name.split(' ');
-		return {
-			lastName: nameParts[name.length-1],
-			firstName: nameParts.slice(0, nameParts.length-1).join(' '),
-			creatorType: role
-		};
-	}
-
-	static xpathText(doc: Document, query: string) {
-		return `<xpath value for query ${query}`;
-	}
-
-	static xpath(doc: Document, query: string) {
-		return [new fake_dom.DOMElement(`<xpath value for query ${query}`)];
-	}
-}
-
-class ZoteroItem implements zotero.ZoteroItem {
-	itemType: string;
-	creators: zotero.ZoteroCreator[];
-	notes: zotero.ZoteroNote[];
-	tags: string[];
-	seeAlso: string[];
-	attachments: zotero.ZoteroAttachment[];
-
-	result: Q.Deferred<zotero.ZoteroItem>;
-
-	constructor(itemType: string) {
-		this.itemType = itemType;
-		this.creators = [];
-		this.notes = [];
-		this.tags = [];
-		this.seeAlso = [];
-		this.attachments = [];
-
-		this.result = Q.defer<zotero.ZoteroItem>();
-		addItem(this.result.promise);
-	}
-
-	complete() {
-		this.result.resolve(this);
-	}
-}
-
 interface TranslatorSource {
 	metadata: zotero.TranslatorMetadata;
 	translatorCode: string;
 	testCases: zotero.TestCase[];
 }
 
+// Zotero translators are JS files split into three sections.
+// splitSource() takes an input JS file, splits it into the three
+// sections and parses the metadata and test cases.
+//
+// - Metadata (JSON object)
+// - Translator source (JS code)
+// - Test cases ('var testCases = <JS array>')
+//
 function splitSource(source: string): TranslatorSource {
 	const metadataStart = source.indexOf('{');
 	const metadataEnd = source.indexOf('}', metadataStart);
@@ -173,25 +107,8 @@ function loadTranslatorModule(source: string) {
 
 	let script = new (<any>vm).Script(source);
 	let savedItems: Q.Promise<zotero.ZoteroItem>[] = [];
-	let zoteroGlobal = {
-		Item: ZoteroItem,
-		Utilities: ZoteroUtilities,
-		debug: message => {
-			// ignored
-		}
-	};
-
-	let translatorGlobal: TranslatorEnvironment = {
-		exports: <zotero.TranslatorImpl>{},
-		ZU: ZoteroUtilities,
-		Zotero: zoteroGlobal,
-		Z: zoteroGlobal,
-		addItem: addItem,
-
-		// DOM APIs
-		console: console,
-		XPathResult: xpath.XPathResult
-	};
+	
+	let translatorGlobal = translator_environment.createEnvironment();
 	let translatorContext = vm.createContext(translatorGlobal);
 	script.runInContext(translatorContext);
 	
@@ -215,6 +132,8 @@ export function loadTranslator(source: string): Translator {
 	const translatorSource = splitSource(source);
 
 	let translator = loadTranslatorModule(translatorSource.translatorCode);
-	return new Translator(translatorSource.metadata, translator.impl);
+	return new Translator(translatorSource.metadata,
+	                      translator.impl,
+	                      translator.environment);
 }
 

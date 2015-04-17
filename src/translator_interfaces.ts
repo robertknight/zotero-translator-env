@@ -35,13 +35,6 @@ export interface TestCase {
 
 // interfaces used by Zotero translators to
 // create items
-//
-// Zotero.Utilities
-// https://github.com/zotero/zotero/blob/master/chrome/content/zotero/xpcom/utilities_translate.js
-//
-// Zotero Translator API
-// https://github.com/zotero/zotero/tree/master/chrome/content/zotero/xpcom/translation
-//
 export interface ZoteroAttachment {
 	url: string;
 	title: string;
