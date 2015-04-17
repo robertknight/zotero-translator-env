@@ -75,10 +75,11 @@ form {
   margin-left: 9px;
 }
 
-#console {
+#response {
   padding: 5px;
 }
 
-#token {
-  padding-bottom: 10px;
+#summary {
+  border-top: 1px solid black;
+  padding: 10px;
 }

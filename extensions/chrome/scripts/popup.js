@@ -1,6 +1,6 @@
 $(function() {
 
-    var endpoint = 'http://localhost:9876/meta/extract'
+    var endpoint = 'http://localhost:9876/metadata/extract'
     var currentUrl = null;
     var currentTitle = null;
     var extractedData = null;
@@ -24,16 +24,9 @@ $(function() {
     };
 
     $('#save').on('click', function(e) {
-      var accessToken = $('#access-token').val();
-      // mock data
-      var mockData = {
-        title: currentTitle,
-        type: "web_page",
-        websites: [currentUrl]
-      };
-      save(mockData, accessToken);
-      // save(extractedData, accessToken)
       e.preventDefault();
+
+      save(extractedData, $('#access-token').val())
     });
 
   chrome.tabs.query({ currentWindow: true, active: true }, function (tabs) {
@@ -49,10 +42,12 @@ $(function() {
         data: {
             url: currentUrl
         },
-        dataType: 'text',
-        success: function (json) {
-            $('#response').text(json);
-        };
+        success: function (data) {
+            extractedData = data;
+
+            $('#response').text(JSON.stringify(data, null, 2));
+            $('#summary').show();
+        }
     });
   });
 });
