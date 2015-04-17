@@ -151,7 +151,8 @@ function loadTranslatorModule(source: string) {
 		Zotero: {
 			Item: ZoteroItem
 		},
-		addItem: addItem
+		addItem: addItem,
+		console: console
 	};
 	let translatorContext = vm.createContext(translatorGlobal);
 	script.runInContext(translatorContext);

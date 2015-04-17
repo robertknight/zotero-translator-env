@@ -2,6 +2,7 @@
 
 import * as express from 'express';
 import * as fs from 'fs';
+import * as jsdom from 'jsdom';
 import * as Q from 'q';
 
 import * as fake_dom from './fake_dom';
@@ -19,10 +20,10 @@ let OUP_TEST_URL = 'http://ukcatalogue.oup.com/product/9780195113679.do';
 
 function fetchItemsAtUrl(url: string) {
 	return fetch(url).then(response => {
-		return response.text;
+		return response.text();
 	}).then(body => {
-		let fakeDocument = <Document><any>(new fake_dom.DOMElement());
-		return Q.all(oupTranslator.processPage(fakeDocument, url));
+		let document = jsdom.jsdom(body);
+		return Q.all(oupTranslator.processPage(document, url));
 	});
 }
 
@@ -39,7 +40,10 @@ function runServer() {
 			}));
 			res.send(mendeleyDocs);
 		}).catch(err => {
-			res.status(500).send({error: err.toString()});
+			res.status(500).send({
+				error: err.toString(),
+				stack: err.stack
+			});
 		});
 	});
 	let server = app.listen(3000, () => {
