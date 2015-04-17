@@ -1,7 +1,71 @@
 import * as vm from 'vm';
 import * as util from 'util';
 
+import * as fake_dom from './fake_dom';
 import * as zotero from './translator_interfaces';
+
+interface ZoteroUtilities {
+	trimInternal(str: string): string;
+	cleanAuthor(name: string, role: string): zotero.ZoteroCreator;
+	xpathText(doc: Document, query: string): string;
+}
+
+interface ZoteroGlobal {
+	Item: {
+		new (type: string): zotero.ZoteroItem;
+	}
+}
+
+interface TranslatorEnvironment {
+	exports: zotero.TranslatorImpl;
+	Zotero: ZoteroGlobal;
+	ZU: ZoteroUtilities;
+}
+
+class ZoteroUtilitiesImpl {
+	static trimInternal(str: string) {
+		return str.trim();
+	}
+
+	static cleanAuthor(name: string, role: string) {
+		let nameParts = name.split(' ');
+		return {
+			lastName: nameParts[name.length-1],
+			firstName: nameParts.slice(0, nameParts.length-1).join(' '),
+			creatorType: role
+		};
+	}
+
+	static xpathText(doc: Document, query: string) {
+		return `<xpath value for query ${query}`;
+	}
+
+	static xpath(doc: Document, query: string) {
+		return [new fake_dom.DOMElement(`<xpath value for query ${query}`)];
+	}
+}
+
+class ZoteroItem implements zotero.ZoteroItem {
+	itemType: string;
+	creators: zotero.ZoteroCreator[];
+	notes: zotero.ZoteroNote[];
+	tags: string[];
+	seeAlso: string[];
+	attachments: zotero.ZoteroAttachment[];
+
+	constructor(itemType: string) {
+		this.itemType = itemType;
+		this.creators = [];
+		this.notes = [];
+		this.tags = [];
+		this.seeAlso = [];
+		this.attachments = [];
+	}
+
+	complete() {
+		console.log('item completed', this);
+	}
+}
 
 interface TranslatorSource {
 	metadata: zotero.TranslatorMetadata;
@@ -47,8 +111,12 @@ function loadTranslatorModule(source: string): zotero.TranslatorImpl {
 	}
 
 	let script = new (<any>vm).Script(source);
-	let translatorGlobal = {
-		exports: <zotero.TranslatorImpl>{}
+	let translatorGlobal: TranslatorEnvironment = {
+		exports: <zotero.TranslatorImpl>{},
+		ZU: ZoteroUtilitiesImpl,
+		Zotero: {
+			Item: ZoteroItem
+		}
 	};
 	let translatorContext = vm.createContext(translatorGlobal);
 	script.runInContext(translatorContext);

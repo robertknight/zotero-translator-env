@@ -66,14 +66,14 @@ export interface ZoteroItem {
 	seeAlso: string[],
 	attachments: ZoteroAttachment[];
 
-	url: string;
-	publicationTitle: string;
-	title: string;
-	date: string;
-	section: string;
-	abstractNote: string;
-	libraryCatalog: string;
-	accessDate: string;
+	url?: string;
+	publicationTitle?: string;
+	title?: string;
+	date?: string;
+	section?: string;
+	abstractNote?: string;
+	libraryCatalog?: string;
+	accessDate?: string;
 	extra?: string;
 
 	// TBD

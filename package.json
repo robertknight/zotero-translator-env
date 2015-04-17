@@ -9,7 +9,8 @@
   "author": "",
   "license": "AGPLv3",
   "dependencies": {
-    "express": "^4.12.3"
+    "express": "^4.12.3",
+    "isomorphic-fetch": "^2.0.2"
   },
   "devDependencies": {
     "tsd": "^0.6.0-beta.5",
