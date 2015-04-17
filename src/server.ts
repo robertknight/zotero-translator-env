@@ -17,15 +17,33 @@ function loadTranslatorFromFile(path: string) {
 	return translator.loadTranslator(src);
 }
 
-let oupTranslatorPath = path.resolve(`${__dirname}/../translators/Oxford University Press.js`);
-let oupTranslator = loadTranslatorFromFile(oupTranslatorPath);
+let SUPPORTED_TRANSLATORS = ['Oxford University Press'];
 
-function fetchItemsAtUrl(url: string) {
+function loadTranslators() {
+	let translators: translator.Translator[] = [];
+
+	SUPPORTED_TRANSLATORS.forEach(name => {
+		const translatorPath = path.resolve(`${__dirname}/../translators/${name}.js`);
+		const translator = loadTranslatorFromFile(translatorPath);
+		translators.push(translator);
+	});
+
+	return translators;
+}
+
+function fetchItemsAtUrl(url: string, translators: translator.Translator[]) {
 	return fetch(url).then(response => {
 		return response.text();
 	}).then(body => {
-		let document = jsdom.jsdom(body);
-		return Q.all(oupTranslator.processPage(document, url));
+		for (let translator of translators) {
+			let translatorRegex = new RegExp(translator.metadata.target);
+			if (!url.match(translatorRegex)) {
+				continue;
+			}
+			let document = jsdom.jsdom(body);
+			return Q.all(translator.processPage(document, url));
+		}
+		throw new Error(`No matching translator found for ${url}`);
 	});
 }
 
@@ -49,12 +67,20 @@ function convertZoteroItemToMendeleyDocument(item: zotero.ZoteroItem) {
 		publisher: item.publisher,
 		abstract: item.abstractNote,
 		keywords: item.tags,
-		edition: item.edition
+		edition: item.edition,
+		identifiers: {
+			doi: item.DOI,
+			isbn: item.ISBN,
+			issn: item.ISSN
+		},
+		volume: item.volume,
+		issue: item.issue
 	};
 }
 
 function runServer() {
 	let app = express();
+	let translators = loadTranslators();
 	app.get('/auth/login', (req, res) => {
 		const CLIENT_ID = 1725;
 		const REDIRECT_URI = 'http://localhost:9876/auth/done';
@@ -65,7 +91,7 @@ function runServer() {
 	});
 	app.get('/metadata/extract', (req, res) => {
 		let url = req.query.url;
-		fetchItemsAtUrl(url).then(items => {
+		fetchItemsAtUrl(url, translators).then(items => {
 			let mendeleyDocs = items.map(item => convertZoteroItemToMendeleyDocument(item));
 			res.send(mendeleyDocs);
 		}).catch(err => {

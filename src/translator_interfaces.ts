@@ -79,13 +79,13 @@ export interface ZoteroItem {
 	// TBD
 	// extra (137)
 	// pages (102)
-	// DOI (87)
+	DOI?: string;
 	publisher?: string;
 	// place (74)
 	ISBN?: string;
-	// volume (62)
-	// ISSN (60)
-	// issue (59)
+	volume?: string;
+	ISSN?: string;
+	issue?: string;
 	numPages?: string;
 	edition?: string;
 	// language (44)

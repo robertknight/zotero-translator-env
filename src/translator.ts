@@ -19,10 +19,12 @@ interface ZoteroUtilities {
 }
 
 export class Translator {
-	private environment: TranslatorEnvironment;
+	metadata: zotero.TranslatorMetadata;
 	private translator: zotero.TranslatorImpl;
 
-	constructor(translator: zotero.TranslatorImpl, environment: TranslatorEnvironment) {
+	constructor(metadata: zotero.TranslatorMetadata,
+	            translator: zotero.TranslatorImpl) {
+		this.metadata = metadata;
 		this.translator = translator;
 	}
 
@@ -176,6 +178,6 @@ export function loadTranslator(source: string): Translator {
 	const translatorSource = splitSource(source);
 
 	let translator = loadTranslatorModule(translatorSource.translatorCode);
-	return new Translator(translator.impl, translator.environment);
+	return new Translator(translatorSource.metadata, translator.impl);
 }
 
