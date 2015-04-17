@@ -6,7 +6,6 @@ import * as path from 'path';
 import * as jsdom from 'jsdom';
 import * as Q from 'q';
 
-import * as fake_dom from './fake_dom';
 import * as translator from './translator';
 import * as zotero from './translator_interfaces';
 
@@ -40,7 +39,17 @@ function fetchItemsAtUrl(url: string, translators: translator.Translator[]) {
 			if (!url.match(translatorRegex)) {
 				continue;
 			}
-			let document = jsdom.jsdom(body);
+
+			// setup fake DOM environment.
+			// By default jsdom.jsdom() will fetch and execute any <script>
+			// tags that are referenced. For performance and security, we
+			// disable this.
+			let document = jsdom.jsdom(body, {
+				features: {
+					FetchExternalResources: [],
+					ProcessExternalResources: false
+				}
+			});
 			return Q.all(translator.processPage(document, url));
 		}
 		throw new Error(`No matching translator found for ${url}`);
@@ -104,6 +113,7 @@ function runServer() {
 			let mendeleyDocs = items.map(item => convertZoteroItemToMendeleyDocument(item));
 			res.send(mendeleyDocs);
 		}).catch(err => {
+			console.error(`Extracting metadata for ${url} failed: ${err.toString()}, ${err.stack}`);
 			res.status(500).send({
 				error: err.toString(),
 				stack: err.stack
