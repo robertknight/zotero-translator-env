@@ -4,6 +4,7 @@
   "description": "",
   "main": "build/server.js",
   "scripts": {
+    "start": "iojs ./build/server.js",
     "test": "iojs ./node_modules/mocha/bin/_mocha"
   },
   "author": "",
