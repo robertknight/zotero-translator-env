@@ -4,8 +4,15 @@
   "description": "",
   "main": "env.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "iojs ./node_modules/mocha/bin/_mocha"
   },
   "author": "",
-  "license": "AGPLv3"
+  "license": "AGPLv3",
+  "dependencies": {
+    "jsdom": "^5.0.1",
+    "lodash": "^3.7.0"
+  },
+  "devDependencies": {
+    "mocha": "^2.2.4"
+  }
 }
