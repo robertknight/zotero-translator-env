@@ -5,6 +5,8 @@ import * as Q from 'q';
 import * as fake_dom from './fake_dom';
 import * as zotero from './translator_interfaces';
 
+var ZoteroUtilities = require('./ZoteroUtilities');
+
 let savedItems: Q.Promise<zotero.ZoteroItem>[] = [];
 let addItem = (item: Q.Promise<zotero.ZoteroItem>) => {
 	savedItems.push(item);
@@ -145,7 +147,7 @@ function loadTranslatorModule(source: string) {
 	let savedItems: Q.Promise<zotero.ZoteroItem>[] = [];
 	let translatorGlobal: TranslatorEnvironment = {
 		exports: <zotero.TranslatorImpl>{},
-		ZU: ZoteroUtilitiesImpl,
+		ZU: ZoteroUtilities,
 		Zotero: {
 			Item: ZoteroItem
 		},

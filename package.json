@@ -2,19 +2,22 @@
   "name": "zotero-translator-env",
   "version": "0.1.0",
   "description": "",
-  "main": "env.ts",
+  "main": "build/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "iojs ./node_modules/mocha/bin/_mocha"
   },
   "author": "",
   "license": "AGPLv3",
   "dependencies": {
     "express": "^4.12.3",
     "isomorphic-fetch": "^2.0.2",
-    "q": "^1.2.0"
+    "q": "^1.2.0",
+    "lodash": "^3.7.0",
+    "jsdom": "^5.0.1"
   },
   "devDependencies": {
     "tsd": "^0.6.0-beta.5",
-    "typescript": "^1.5.0-alpha"
+    "typescript": "^1.5.0-alpha",
+    "mocha": "^2.2.4"
   }
 }
