@@ -12,9 +12,10 @@
   "dependencies": {
     "express": "^4.12.3",
     "isomorphic-fetch": "^2.0.2",
-    "q": "^1.2.0",
+    "jsdom": "^5.0.1",
     "lodash": "^3.7.0",
-    "jsdom": "^5.0.1"
+    "q": "^1.2.0",
+    "stack-trace": "0.0.9"
   },
   "devDependencies": {
     "tsd": "^0.6.0-beta.5",

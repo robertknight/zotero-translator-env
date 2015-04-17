@@ -1,6 +1,8 @@
 // interfaces exposed by Zotero translators
 
 export interface TranslatorImpl {
+	code: string;
+
 	detectWeb(doc: Document, url: string): string;
 	doWeb(doc: Document, url: string): void;
 	scrape?(doc: Document, url: string, title: string): void;

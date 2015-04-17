@@ -7,6 +7,7 @@ import * as zotero from './translator_interfaces';
 
 var ZoteroUtilities = require('./ZoteroUtilities');
 var xpath = require('jsdom/lib/jsdom/level3/xpath');
+var stack_trace = require('stack-trace');
 
 let savedItems: Q.Promise<zotero.ZoteroItem>[] = [];
 let addItem = (item: Q.Promise<zotero.ZoteroItem>) => {
@@ -17,6 +18,13 @@ interface ZoteroUtilities {
 	trimInternal(str: string): string;
 	cleanAuthor(name: string, role: string): zotero.ZoteroCreator;
 	xpathText(doc: Document, query: string): string;
+}
+
+function logTranslatorError(code: string, err: Error) {
+	let trace = stack_trace.parse(err);
+	let lines = code.split('\n');
+	let errLine = lines[trace[0].getLineNumber()-1];
+	console.error(`translator error on ${errLine}: ${err.toString()}`);
 }
 
 export class Translator {
@@ -30,13 +38,23 @@ export class Translator {
 	}
 
 	detectAvailableItemType(document: Document, url: string): string {
-		return this.translator.detectWeb(document, url);
+		try {
+			return this.translator.detectWeb(document, url);
+		} catch (err) {
+			logTranslatorError(this.translator.code, err);
+			return null;
+		}
 	}
 
 	processPage(document: Document, url: string): Q.Promise<zotero.ZoteroItem>[] {
 		savedItems = [];
-		this.translator.doWeb(document, url);
-		return savedItems;
+		try {
+			this.translator.doWeb(document, url);
+			return savedItems;
+		} catch (err) {
+			logTranslatorError(this.translator.code, err);
+			return null;
+		}
 	}
 }
 
@@ -45,11 +63,13 @@ interface ZoteroGlobal {
 		new (type: string): zotero.ZoteroItem;
 	},
 	Utilities: ZoteroUtilities
+	debug(message: any);
 }
 
 interface TranslatorEnvironment {
 	exports: zotero.TranslatorImpl;
 	Zotero: ZoteroGlobal;
+	Z: ZoteroGlobal;
 	ZU: ZoteroUtilities;
 	addItem(item: Q.Promise<zotero.ZoteroItem>);
 }
@@ -153,13 +173,19 @@ function loadTranslatorModule(source: string) {
 
 	let script = new (<any>vm).Script(source);
 	let savedItems: Q.Promise<zotero.ZoteroItem>[] = [];
+	let zoteroGlobal = {
+		Item: ZoteroItem,
+		Utilities: ZoteroUtilities,
+		debug: message => {
+			// ignored
+		}
+	};
+
 	let translatorGlobal: TranslatorEnvironment = {
 		exports: <zotero.TranslatorImpl>{},
 		ZU: ZoteroUtilities,
-		Zotero: {
-			Item: ZoteroItem,
-			Utilities: ZoteroUtilities
-		},
+		Zotero: zoteroGlobal,
+		Z: zoteroGlobal,
 		addItem: addItem,
 
 		// DOM APIs
@@ -172,6 +198,7 @@ function loadTranslatorModule(source: string) {
 	return {
 		environment: translatorGlobal,
 		impl: {
+			code: source,
 			detectWeb: translatorGlobal.exports.detectWeb,
 			doWeb: translatorGlobal.exports.doWeb
 		}

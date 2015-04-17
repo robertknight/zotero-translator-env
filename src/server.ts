@@ -30,29 +30,71 @@ function loadTranslators() {
 	return translators;
 }
 
+interface ScoredTranslator {
+	translator: translator.Translator;
+	score: number;
+}
+
+function findBestTranslator(url: string, document: Document, translators: translator.Translator[]) {
+	let scoredTranslators: ScoredTranslator[] = [];
+	console.log('finding translator for', url);
+	translators.forEach(tr => {
+		if (tr.metadata.target) {
+			let targetRegEx = new RegExp(tr.metadata.target);
+			if (!url.match(targetRegEx)) {
+				console.log(`${tr.metadata.label} does not match ${tr.metadata.target}`);
+				return;
+			}
+		}
+		let itemType = tr.detectAvailableItemType(document, url);
+		if (!itemType) {
+			console.log(`${tr.metadata.label} did not find an item type for ${url}`);
+			return;
+		}
+		scoredTranslators.push({
+			translator: tr,
+			score: tr.metadata.priority
+		});
+	});
+	scoredTranslators.sort((a, b) => {
+		if (a.score < b.score) {
+			return -1;
+		} else if (a.score === b.score) {
+			return 0;
+		} else {
+			return 1;
+		}
+	});
+
+	if (scoredTranslators.length > 0) {
+		return scoredTranslators[0].translator;
+	} else {
+		return null;
+	}
+}
+
 function fetchItemsAtUrl(url: string, translators: translator.Translator[]) {
+	console.log(`Fetching ${url}`);
 	return fetch(url).then(response => {
 		return response.text();
 	}).then(body => {
-		for (let translator of translators) {
-			let translatorRegex = new RegExp(translator.metadata.target);
-			if (!url.match(translatorRegex)) {
-				continue;
+		// setup fake DOM environment.
+		// By default jsdom.jsdom() will fetch and execute any <script>
+		// tags that are referenced. For performance and security, we
+		// disable this.
+		let document = jsdom.jsdom(body, {
+			features: {
+				FetchExternalResources: [],
+				ProcessExternalResources: false
 			}
+		});
 
-			// setup fake DOM environment.
-			// By default jsdom.jsdom() will fetch and execute any <script>
-			// tags that are referenced. For performance and security, we
-			// disable this.
-			let document = jsdom.jsdom(body, {
-				features: {
-					FetchExternalResources: [],
-					ProcessExternalResources: false
-				}
-			});
-			return Q.all(translator.processPage(document, url));
+		let translator = findBestTranslator(url, document, translators);
+		if (!translator) {
+			throw new Error(`No matching translator found for ${url}`);
 		}
-		throw new Error(`No matching translator found for ${url}`);
+		console.log(`Processing ${url} with translator ${translator.metadata.label}`);
+		return Q.all(translator.processPage(document, url));
 	});
 }
 
