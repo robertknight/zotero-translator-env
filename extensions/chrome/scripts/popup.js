@@ -26,16 +26,23 @@ $(function() {
     $('#save').on('click', function(e) {
       e.preventDefault();
 
-      var accessToken = $('#access-token').val();
+      if (localStorage.accessToken == null) {
+          localStorage.accessToken = $('#access-token').val();
+      }
 
       extractedData.forEach(function (data) {
-          save(data, accessToken);
+          save(data, localStorage.accessToken);
       });
     });
 
   chrome.tabs.query({ currentWindow: true, active: true }, function (tabs) {
     currentUrl = tabs[0].url;
     currentTitle = tabs[0].title;
+
+    if (localStorage.accessToken != null) {
+        $('#access-token').hide();
+        $('#access-token-value').text(localStorage.accessToken);
+    }
 
     $('#response').text('Fetching data...');
 
