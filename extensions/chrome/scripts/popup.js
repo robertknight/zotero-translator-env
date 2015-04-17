@@ -69,9 +69,24 @@ $(function() {
         success: function (data) {
             extractedData = data;
 
-            $('#response').text(JSON.stringify(data, null, 2));
+            $('#response').html(renderInfo(data[0]));
             $('#summary').show();
         }
     });
   });
 });
+
+function renderInfo(data) {
+    return '' +
+
+    '<div><strong>Title:</strong> <p>' + data.title + '</p><div>' +
+    '<div><strong>Authors:</strong> <p>' + convertAuthors(data.authors) + '</p><div>' +
+    '<div><strong>Abstract:</strong> <p>' + data.abstract + '</p><div>';
+
+}
+
+function convertAuthors(authors) {
+    return authors.map(function (author) {
+        return (author.last_name || '') + ' ' + (author.first_name && author.first_name[0] || '');
+    }).join(', ');
+}
