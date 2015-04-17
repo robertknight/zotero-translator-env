@@ -6,6 +6,7 @@ import * as fake_dom from './fake_dom';
 import * as zotero from './translator_interfaces';
 
 var ZoteroUtilities = require('./ZoteroUtilities');
+var xpath = require('jsdom/lib/jsdom/level3/xpath');
 
 let savedItems: Q.Promise<zotero.ZoteroItem>[] = [];
 let addItem = (item: Q.Promise<zotero.ZoteroItem>) => {
@@ -42,7 +43,8 @@ export class Translator {
 interface ZoteroGlobal {
 	Item: {
 		new (type: string): zotero.ZoteroItem;
-	}
+	},
+	Utilities: ZoteroUtilities
 }
 
 interface TranslatorEnvironment {
@@ -121,19 +123,23 @@ function splitSource(source: string): TranslatorSource {
 	const metadataJsonStr = source.slice(metadataStart, metadataEnd+1);
 	let metadata = <zotero.TranslatorMetadata>JSON.parse(metadataJsonStr);
 
-	let testCaseSourceStart = source.indexOf('/** BEGIN TEST CASES **/');
-	if (testCaseSourceStart === -1) {
-		throw new Error('Failed to find test cases in translator source');
-	}
-	let testCaseDataStart = source.indexOf('[', testCaseSourceStart);
-	let testCaseDataEnd = source.lastIndexOf(']');
+	let testCases: zotero.TestCase[];
+	let translatorCodeEnd;
 
-	const testCaseDataSource = source.slice(testCaseDataStart, testCaseDataEnd+1);
-	const testCases = <zotero.TestCase[]>(JSON.parse(testCaseDataSource));
+	let testCaseSourceStart = source.indexOf('/** BEGIN TEST CASES **/');
+	if (testCaseSourceStart !== -1) {
+		translatorCodeEnd = testCaseSourceStart;
+		let testCaseDataStart = source.indexOf('[', testCaseSourceStart);
+		let testCaseDataEnd = source.lastIndexOf(']');
+		let testCaseDataSource = source.slice(testCaseDataStart, testCaseDataEnd+1);
+		testCases = <zotero.TestCase[]>(JSON.parse(testCaseDataSource));
+	} else {
+		translatorCodeEnd = source.length;
+	}
 
 	return {
 		metadata: metadata,
-		translatorCode: source.slice(metadataEnd + 1, testCaseSourceStart),
+		translatorCode: source.slice(metadataEnd + 1, translatorCodeEnd),
 		testCases: testCases
 	};
 }
@@ -151,10 +157,14 @@ function loadTranslatorModule(source: string) {
 		exports: <zotero.TranslatorImpl>{},
 		ZU: ZoteroUtilities,
 		Zotero: {
-			Item: ZoteroItem
+			Item: ZoteroItem,
+			Utilities: ZoteroUtilities
 		},
 		addItem: addItem,
-		console: console
+
+		// DOM APIs
+		console: console,
+		XPathResult: xpath.XPathResult
 	};
 	let translatorContext = vm.createContext(translatorGlobal);
 	script.runInContext(translatorContext);
