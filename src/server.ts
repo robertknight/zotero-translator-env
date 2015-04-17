@@ -17,7 +17,7 @@ function loadTranslatorFromFile(path: string) {
 	return translator.loadTranslator(src);
 }
 
-let SUPPORTED_TRANSLATORS = ['Oxford University Press'];
+let SUPPORTED_TRANSLATORS = ['Oxford University Press', 'The Times UK'];
 
 function loadTranslators() {
 	let translators: translator.Translator[] = [];
@@ -47,6 +47,10 @@ function fetchItemsAtUrl(url: string, translators: translator.Translator[]) {
 	});
 }
 
+let ZOTERO_TYPE_MAPPINGS = {
+	'book': 'book'
+};
+
 function convertZoteroItemToMendeleyDocument(item: zotero.ZoteroItem) {
 	let year: number;
 	if (item.date) {
@@ -56,8 +60,13 @@ function convertZoteroItemToMendeleyDocument(item: zotero.ZoteroItem) {
 		}
 	}
 
+	let type = 'generic';
+	if (ZOTERO_TYPE_MAPPINGS.hasOwnProperty(item.itemType)) {
+		type = ZOTERO_TYPE_MAPPINGS[item.itemType];
+	}
+
 	return {
-		type: item.itemType,
+		type: type,
 		title: item.title,
 		authors: item.creators.map((author) => {
 			return { first_name: author.firstName, last_name: author.lastName };
