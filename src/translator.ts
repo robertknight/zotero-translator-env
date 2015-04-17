@@ -148,7 +148,7 @@ function loadTranslatorModule(source: string) {
 	let exportedFuncs = ['detectWeb', 'doWeb'];
 
 	for (name of exportedFuncs) {
-		source = source.replace(`function ${name}`, `exports.${name} = function`);
+		source = source + '\n' + `exports.${name} = ${name}`;
 	}
 
 	let script = new (<any>vm).Script(source);
