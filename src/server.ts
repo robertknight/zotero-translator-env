@@ -65,7 +65,14 @@ function convertZoteroItemToMendeleyDocument(item: zotero.ZoteroItem) {
 		publisher: item.publisher,
 		abstract: item.abstractNote,
 		keywords: item.tags,
-		edition: item.edition
+		edition: item.edition,
+		identifiers: {
+			doi: item.DOI,
+			isbn: item.ISBN,
+			issn: item.ISSN
+		},
+		volume: item.volume,
+		issue: item.issue
 	};
 }
 
