@@ -7,6 +7,7 @@ import * as Q from 'q';
 
 import * as fake_dom from './fake_dom';
 import * as translator from './translator';
+import * as zotero from './translator_interfaces';
 
 var fetch = require('isomorphic-fetch');
 
@@ -27,17 +28,34 @@ function fetchItemsAtUrl(url: string) {
 	});
 }
 
+function convertZoteroItemToMendeleyDocument(item: zotero.ZoteroItem) {
+	let year: number;
+	if (item.date) {
+		let yearMatch = item.date.match(/[0-9]{4}/);
+		if (yearMatch) {
+			year = parseInt(yearMatch[0]);
+		}
+	}
+
+	return {
+		type: item.itemType,
+		title: item.title,
+		authors: item.creators,
+		year: year,
+		pages: item.numPages,
+		publisher: item.publisher,
+		abstract: item.abstractNote,
+		keywords: item.tags,
+		edition: item.edition
+	};
+}
+
 function runServer() {
 	let app = express();
 	app.get('/metadata/extract', (req, res) => {
 		let url = req.query.url;
 		fetchItemsAtUrl(url).then(items => {
-			let mendeleyDocs = items.map(item => ({
-				type: item.type,
-				title: item.title,
-				authors: item.creators,
-				year: item.year
-			}));
+			let mendeleyDocs = items.map(item => convertZoteroItemToMendeleyDocument(item));
 			res.send(mendeleyDocs);
 		}).catch(err => {
 			res.status(500).send({

@@ -80,13 +80,14 @@ export interface ZoteroItem {
 	// extra (137)
 	// pages (102)
 	// DOI (87)
-	// publisher (79)
+	publisher?: string;
 	// place (74)
-	// ISBN (72)
+	ISBN?: string;
 	// volume (62)
 	// ISSN (60)
 	// issue (59)
-	// numPages (48)
+	numPages?: string;
+	edition?: string;
 	// language (44)
 	// series (39)
 	// journalAbbreviation (34)
