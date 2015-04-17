@@ -52,6 +52,14 @@ function convertZoteroItemToMendeleyDocument(item: zotero.ZoteroItem) {
 
 function runServer() {
 	let app = express();
+	app.get('/auth/login', (req, res) => {
+		const CLIENT_ID = 1725;
+		const REDIRECT_URI = 'http://localhost:9876/auth/done';
+		res.redirect(`https://api.mendeley.com/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=all`);
+	});
+	app.get('/auth/done', (req, res) => {
+		res.send('Zotero translation server login complete');
+	});
 	app.get('/metadata/extract', (req, res) => {
 		let url = req.query.url;
 		fetchItemsAtUrl(url).then(items => {
