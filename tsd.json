@@ -10,6 +10,9 @@
     },
     "node/node.d.ts": {
       "commit": "52fa2b9ce36f2c5843204e9bfbaada7cded9b47a"
+    },
+    "q/Q.d.ts": {
+      "commit": "52fa2b9ce36f2c5843204e9bfbaada7cded9b47a"
     }
   }
 }
