@@ -26,7 +26,11 @@ $(function() {
     $('#save').on('click', function(e) {
       e.preventDefault();
 
-      save(extractedData, $('#access-token').val())
+      var accessToken = $('#access-token').val();
+
+      extractedData.forEach(function (data) {
+          save(data, accessToken);
+      });
     });
 
   chrome.tabs.query({ currentWindow: true, active: true }, function (tabs) {
