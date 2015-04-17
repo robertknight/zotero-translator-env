@@ -1,14 +1,17 @@
 // interfaces exposed by Zotero translators
 
-interface Translator {
-	metadata: TranslatorMetadata;
-
+export interface TranslatorImpl {
 	detectWeb(doc: Document, url: string): string;
-	scrape(doc: Document, url: string, title: string): void;
 	doWeb(doc: Document, url: string): void;
+	scrape?(doc: Document, url: string, title: string): void;
 }
 
-interface TranslatorMetadata {
+export interface Translator {
+	metadata: TranslatorMetadata;
+	impl: TranslatorImpl;
+}
+
+export interface TranslatorMetadata {
 	translatorID: string;
 	label: string;
 	creator: string;
@@ -22,7 +25,7 @@ interface TranslatorMetadata {
 	lastUpdated: string; // Date in YYYY-MM-DD HH:MM:SS format
 }
 
-interface TestCase {
+export interface TestCase {
 	type: string;
 	url: string;
 	items: ZoteroItem[];
@@ -37,24 +40,24 @@ interface TestCase {
 // Zotero Translator API
 // https://github.com/zotero/zotero/tree/master/chrome/content/zotero/xpcom/translation
 //
-interface ZoteroAttachment {
+export interface ZoteroAttachment {
 	url: string;
 	title: string;
 	mimeType: string;
 }
 
-interface ZoteroCreator {
+export interface ZoteroCreator {
 	firstName: string;
 	lastName: string;
 	creatorType: string;
 }
 
-interface ZoteroNote {
+export interface ZoteroNote {
 	note: string;
 }
 
 // see https://github.com/zotero/zotero/blob/master/chrome/content/zotero/xpcom/data/item.js
-interface ZoteroItem {
+export interface ZoteroItem {
 	itemType: string;
 
 	creators: ZoteroCreator[];
