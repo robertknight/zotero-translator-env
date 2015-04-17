@@ -28,11 +28,24 @@ $(function() {
 
       if (localStorage.accessToken == null) {
           localStorage.accessToken = $('#access-token').val();
+
+          $('#access-token').hide();
+          $('#access-token-value').text(localStorage.accessToken);
       }
 
       extractedData.forEach(function (data) {
           save(data, localStorage.accessToken);
       });
+    });
+
+    $('#clear-token').on('click', function(e) {
+      e.preventDefault();
+
+      localStorage.removeItem('accessToken');
+
+      $('#access-token').show();
+      $('#access-token-value').text('');
+
     });
 
   chrome.tabs.query({ currentWindow: true, active: true }, function (tabs) {
