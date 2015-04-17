@@ -41,7 +41,9 @@ function convertZoteroItemToMendeleyDocument(item: zotero.ZoteroItem) {
 	return {
 		type: item.itemType,
 		title: item.title,
-		authors: item.creators,
+		authors: item.creators.map((author) => {
+			return { first_name: author.firstName, last_name: author.lastName };
+		}),
 		year: year,
 		pages: item.numPages,
 		publisher: item.publisher,
