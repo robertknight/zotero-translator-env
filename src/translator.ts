@@ -4,18 +4,34 @@ import * as Q from 'q';
 
 var stack_trace = require('stack-trace');
 
-import * as zotero from './translator_interfaces';
+import * as zotero from './zotero_types';
 import * as translator_environment from './translator_environment';
 
 function logTranslatorError(code: string, err: Error) {
 	let trace = stack_trace.parse(err);
+
+	// find the line in the translator source where the
+	// error occurred. The file name of the translator source
+	// is set when the Script() object for it is created
 	let lines = code.split('\n');
-	let errLine = lines[trace[0].getLineNumber()-1];
-	console.error(`translator error on ${errLine}: ${err.toString()}`);
+	let errLine = '';
+	trace.forEach(entry => {
+		if (entry.getFileName().match(/<translator/)) {
+			errLine = lines[entry.getLineNumber()-1].trim();
+		}
+	});
+
+	console.error(`translator error at "${errLine}": ${err.toString()}
+  ${(<any>err).stack}`);
 }
 
+/** Wraps a Zotero translator and provides methods to invoke
+  * the translator's functions to detect available items
+  * on a page and import them.
+  */
 export class Translator {
 	metadata: zotero.TranslatorMetadata;
+
 	private translator: zotero.TranslatorImpl;
 	private environment: translator_environment.TranslatorGlobal;
 
@@ -27,9 +43,12 @@ export class Translator {
 		this.environment = environment;
 	}
 
+	/** Detect the type of item available to import on the given
+	  * page.
+	  */
 	detectAvailableItemType(document: Document, url: string): string {
 		try {
-			this.environment.Zotero.Utilities.currentUrl = url;
+			this.environment.context.currentUrl = url;
 			return this.translator.detectWeb(document, url);
 		} catch (err) {
 			logTranslatorError(this.translator.code, err);
@@ -37,12 +56,15 @@ export class Translator {
 		}
 	}
 
-	processPage(document: Document, url: string): Q.Promise<zotero.ZoteroItem>[] {
-		savedItems = [];
+	/** Process the given page and return all items found. */
+	processPage(document: Document, url: string): Q.Promise<zotero.Item>[] {
 		try {
-			this.environment.Zotero.Utilities.currentUrl = url;
+			this.environment.context.items = [];
+			this.environment.context.currentUrl = url;
+
 			this.translator.doWeb(document, url);
-			return savedItems;
+
+			return this.environment.context.items.map(item => Q(item));
 		} catch (err) {
 			logTranslatorError(this.translator.code, err);
 			return null;
@@ -50,9 +72,20 @@ export class Translator {
 	}
 }
 
+/** Output of parsing a Zotero Translator source file. */
 interface TranslatorSource {
 	metadata: zotero.TranslatorMetadata;
+
+	/** The JavaScript source code for the translator.
+	  * In order to eval() this, a suitable global context
+	  * needs to be created which provides the APIs that
+	  * the translators expect to find.
+	  */
 	translatorCode: string;
+
+	/** The set of translator test cases embedded in the translator
+	  * source file.
+	  */
 	testCases: zotero.TestCase[];
 }
 
@@ -98,15 +131,19 @@ function splitSource(source: string): TranslatorSource {
 	};
 }
 
-function loadTranslatorModule(source: string) {
+function loadTranslatorModule(name: string, source: string) {
 	let exportedFuncs = ['detectWeb', 'doWeb'];
 
-	for (name of exportedFuncs) {
+	for (let name of exportedFuncs) {
 		source = source + '\n' + `exports.${name} = ${name}`;
 	}
 
-	let script = new (<any>vm).Script(source);
-	let savedItems: Q.Promise<zotero.ZoteroItem>[] = [];
+	let script = new (<any>vm).Script(source, {
+		// spaces in the name are replaced here to work around
+		// a bug in the 'stack-trace' module's parsing of file names
+		filename: `<translator:${name.replace(/\s/g,'-')}>`
+	});
+	let savedItems: Q.Promise<zotero.Item>[] = [];
 	
 	let translatorGlobal = translator_environment.createEnvironment();
 	let translatorContext = vm.createContext(translatorGlobal);
@@ -122,6 +159,10 @@ function loadTranslatorModule(source: string) {
 	};
 }
 
+/** Load a translator from a given JS source file.
+  * The format of the translator source files should match those in
+  * the Zotero Translators repository - see github.com/zotero/translators
+  */
 export function loadTranslator(source: string): Translator {
 	// translators consist of three sections:
 	//
@@ -131,7 +172,8 @@ export function loadTranslator(source: string): Translator {
 
 	const translatorSource = splitSource(source);
 
-	let translator = loadTranslatorModule(translatorSource.translatorCode);
+	let translator = loadTranslatorModule(translatorSource.metadata.label,
+	                                      translatorSource.translatorCode);
 	return new Translator(translatorSource.metadata,
 	                      translator.impl,
 	                      translator.environment);

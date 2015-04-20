@@ -166,11 +166,10 @@ var cleanAuthor = exports.cleanAuthor = function cleanAuthor(author, type, useCo
     return { firstName: firstName, lastName: lastName, creatorType: type };
 }
 
-exports.currentUrl = '';
-
 // performs an async network GET request
-exports.doGet = function(relativeUrl, callback) {
-	var absoluteUrl = urlLib.resolve(exports.currentUrl, relativeUrl);
+exports.doGet = function(context, relativeUrl, callback) {
+	context.beginRequest();
+	var absoluteUrl = urlLib.resolve(context.currentUrl, relativeUrl);
 	console.log('fetching', absoluteUrl);
 	return fetch(absoluteUrl).then(function(response) {
 		return response.text();
@@ -179,6 +178,8 @@ exports.doGet = function(relativeUrl, callback) {
 	}).catch(function(err) {
 		console.error('Failed to fetch', absoluteUrl, err.toString(), err.stack);
 		callback('');
+	}).then(function() {
+		context.endRequest();
 	});
 }
 

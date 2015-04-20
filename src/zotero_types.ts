@@ -30,36 +30,36 @@ export interface TranslatorMetadata {
 export interface TestCase {
 	type: string;
 	url: string;
-	items: ZoteroItem[];
+	items: Item[];
 }
 
 // interfaces used by Zotero translators to
 // create items
-export interface ZoteroAttachment {
+export interface Attachment {
 	url: string;
 	title: string;
 	mimeType: string;
 }
 
-export interface ZoteroCreator {
+export interface Creator {
 	firstName: string;
 	lastName: string;
 	creatorType: string;
 }
 
-export interface ZoteroNote {
+export interface Note {
 	note: string;
 }
 
 // see https://github.com/zotero/zotero/blob/master/chrome/content/zotero/xpcom/data/item.js
-export interface ZoteroItem {
+export interface Item {
 	itemType: string;
 
-	creators: ZoteroCreator[];
-	notes: ZoteroNote[],
+	creators: Creator[];
+	notes: Note[],
 	tags: string[],
 	seeAlso: string[],
-	attachments: ZoteroAttachment[];
+	attachments: Attachment[];
 
 	url?: string;
 	publicationTitle?: string;

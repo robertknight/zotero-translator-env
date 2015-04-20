@@ -1,16 +1,16 @@
-import * as zotero from './translator_interfaces';
+import * as zotero from './zotero_types';
 
-export class Item implements zotero.ZoteroItem {
+export class Item implements zotero.Item {
 	itemType: string;
-	creators: zotero.ZoteroCreator[];
-	notes: zotero.ZoteroNote[];
+	creators: zotero.Creator[];
+	notes: zotero.Note[];
 	tags: string[];
 	seeAlso: string[];
-	attachments: zotero.ZoteroAttachment[];
+	attachments: zotero.Attachment[];
 
-	result: Q.Deferred<zotero.ZoteroItem>;
+	context: any; // TranslationContext
 
-	constructor(itemType: string) {
+	constructor(context: any, itemType: string) {
 		this.itemType = itemType;
 		this.creators = [];
 		this.notes = [];
@@ -18,12 +18,11 @@ export class Item implements zotero.ZoteroItem {
 		this.seeAlso = [];
 		this.attachments = [];
 
-		this.result = Q.defer<zotero.ZoteroItem>();
-		global.addItem(this.result.promise);
+		this.context = context;
 	}
 
 	complete() {
-		this.result.resolve(this);
+		this.context.saveItem(this);
 	}
 }
 

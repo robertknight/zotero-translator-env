@@ -7,7 +7,7 @@ import * as jsdom from 'jsdom';
 import * as Q from 'q';
 
 import * as translator from './translator';
-import * as zotero from './translator_interfaces';
+import * as zotero from './zotero_types';
 
 var fetch = require('isomorphic-fetch');
 
@@ -102,7 +102,7 @@ let ZOTERO_TYPE_MAPPINGS = {
 	'book': 'book'
 };
 
-function convertZoteroItemToMendeleyDocument(item: zotero.ZoteroItem) {
+function convertZoteroItemToMendeleyDocument(item: zotero.Item) {
 	let year: number;
 	if (item.date) {
 		let yearMatch = item.date.match(/[0-9]{4}/);

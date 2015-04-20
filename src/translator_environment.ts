@@ -6,29 +6,34 @@
 
 import * as jsdom from 'jsdom';
 
-import * as zotero from './translator_interfaces';
+import * as zotero from './zotero_types';
 import {Item} from './zotero_item';
 
 var xpath = require('jsdom/lib/jsdom/level3/xpath');
 var ZoteroUtilities = require('./ZoteroUtilities');
 
-let savedItems: Q.Promise<zotero.ZoteroItem>[] = [];
-let addItem = (item: Q.Promise<zotero.ZoteroItem>) => {
+let savedItems: Q.Promise<zotero.Item>[] = [];
+let addItem = (item: Q.Promise<zotero.Item>) => {
 	savedItems.push(item);
 };
+
+interface TranslationContext {
+	currentUrl: string;
+	items: zotero.Item[];
+
+	saveItem(item: zotero.Item): void;
+	beginRequest(): void;
+	endRequest(): void;
+}
 
 /** API for the 'ZU'/'Zotero.Utilities' interface
   * exposed to translators.
   */
 export interface ZoteroUtilities {
 	trimInternal(str: string): string;
-	cleanAuthor(name: string, role: string): zotero.ZoteroCreator;
+	cleanAuthor(name: string, role: string): zotero.Creator;
 	xpathText(doc: Document, query: string): string;
-
-	// the current URL is exposed for use in the network
-	// fetch methods
-	currentUrl: string;
-	doGet(relativeUrl: string, callback: (content: string) => void): void;
+	doGet(context: any, relativeUrl: string, callback: (content: string) => void): void;
 }
 
 /** API for the 'Z'/'Zotero' interface exposed
@@ -36,7 +41,7 @@ export interface ZoteroUtilities {
   */
 export interface ZoteroGlobal {
 	Item: {
-		new (type: string): zotero.ZoteroItem;
+		new (type: string): zotero.Item;
 	},
 	Utilities: ZoteroUtilities
 	debug(message: any);
@@ -48,7 +53,7 @@ export interface ZoteroGlobal {
 export interface TranslatorGlobal {
 	// APIs used by translator environment
 	exports: zotero.TranslatorImpl;
-	addItem(item: Q.Promise<zotero.ZoteroItem>);
+	context: TranslationContext;
 
 	// APIs exposed to Zotero translators
 	Zotero: ZoteroGlobal;
@@ -72,9 +77,32 @@ class DOMParser {
 }
 
 export function createEnvironment() {
+	let context: TranslationContext = {
+		currentUrl: '',
+		items: [],
+
+		saveItem: (item: zotero.Item) => {
+			console.log('context add item');
+		},
+
+		beginRequest: () => {
+			console.log('context.beginRequest');
+		},
+
+		endRequest: () => {
+			console.log('context.endRequest');
+		}
+	};
+
 	let zoteroGlobal = {
-		Item: Item,
-		Utilities: ZoteroUtilities,
+		Item: Item.bind(null, context),
+		Utilities: {
+			xpath: ZoteroUtilities.xpath,
+			xpathText: ZoteroUtilities.xpathText,
+			trimInternal: ZoteroUtilities.trimInternal,
+			cleanAuthor: ZoteroUtilities.cleanAuthor,
+			doGet: ZoteroUtilities.doGet.bind(context)
+		},
 		debug: message => {
 			// ignored
 		}
@@ -86,8 +114,8 @@ export function createEnvironment() {
 		Z: zoteroGlobal,
 		
 		exports: <zotero.TranslatorImpl>{},
-		addItem: addItem,
-		currentUrl: '',
+
+		context: context,
 
 		// DOM APIs
 		console: console,
