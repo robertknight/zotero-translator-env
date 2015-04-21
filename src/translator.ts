@@ -64,7 +64,7 @@ export class Translator {
 	  */
 	detectAvailableItemType(document: Document, url: string): string {
 		try {
-			this.environment.context.currentUrl = url;
+			this.environment.context = new translator_environment.ContextImpl(this.metadata.label, url);
 			return this.translator.detectWeb(document, url);
 		} catch (err) {
 			logTranslatorError(this.translator.code, err);
@@ -75,7 +75,7 @@ export class Translator {
 	/** Process the given page and return all items found. */
 	processPage(document: Document, url: string): rx.Observable<zotero.Item> {
 		try {
-			this.environment.context.reset(url);
+			this.environment.context = new translator_environment.ContextImpl(this.metadata.label, url);
 			this.translator.doWeb(document, url);
 			this.environment.context.complete();
 			return this.environment.context.items;

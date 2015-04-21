@@ -1,5 +1,11 @@
 import * as zotero from './zotero_types';
 
+interface Environment {
+	context: {
+		saveItem(item: zotero.Item): void;
+	}
+}
+
 export class Item implements zotero.Item {
 	itemType: string;
 	creators: zotero.Creator[];
@@ -8,21 +14,20 @@ export class Item implements zotero.Item {
 	seeAlso: string[];
 	attachments: zotero.Attachment[];
 
-	context: any; // TranslationContext
+	environment: Environment;
 
-	constructor(context: any, itemType: string) {
+	constructor(environment: Environment, itemType: string) {
 		this.itemType = itemType;
 		this.creators = [];
 		this.notes = [];
 		this.tags = [];
 		this.seeAlso = [];
 		this.attachments = [];
-
-		this.context = context;
+		this.environment = environment;
 	}
 
 	complete() {
-		this.context.saveItem(this);
+		this.environment.context.saveItem(this);
 	}
 }
 
