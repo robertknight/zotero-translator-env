@@ -201,7 +201,6 @@ interface ScoredTranslator {
 
 function findBestTranslator(url: string, document: Document, translators: Translator[]) {
 	let scoredTranslators: ScoredTranslator[] = [];
-	console.log('finding translator for', url);
 	translators.forEach(tr => {
 		if (tr.metadata.target) {
 			let targetRegEx = new RegExp(tr.metadata.target);
@@ -238,7 +237,6 @@ function findBestTranslator(url: string, document: Document, translators: Transl
 }
 
 export function fetchItemsAtUrl(url: string, translators: Translator[]): Q.Promise<zotero.Item[]> {
-	console.log(`Fetching ${url}`);
 	return fetch(url).then((response: any) => {
 		return response.text();
 	}).then((body: string) => {
@@ -258,9 +256,7 @@ export function fetchItemsAtUrl(url: string, translators: Translator[]): Q.Promi
 			throw new Error(`No matching translator found for ${url}`);
 		}
 		
-		console.log(`Processing ${url} with translator ${translator.metadata.label}`);
 		let items = translator.processPage(document, url);
-
 		return items.toArray().toPromise();
 	});
 }

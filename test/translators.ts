@@ -18,17 +18,40 @@ function loadTranslatorFromFile(path: string) {
 	return translator.loadTranslator(src);
 }
 
-function postProcessItems(items: zotero.Item[]) {
-	items.forEach(item => {
-		item.tags.sort();
+// 'sanitize' translated items to match the form expected
+// by the test case results:
+// - Sort tags alphabetically
+// - Ignore attachment URLs
+//
+// See https://github.com/zotero/zotero/blob/f2fb6e2e9c876408699944ec7be50987f5ca90bf/chrome/content/zotero/tools/testTranslators/translatorTester.js#L204
+//
+function sanitizeItems(items: zotero.Item[]) {
+	const IGNORED_PROPS = ['environment'];
+	return items.map(item => {
+		let resultItem: zotero.Item = <zotero.Item>{};
+		for (let k in item) {
+			// ignore private fields in zotero_item.Item() class.
+			// Possibly look into using TS decorators to mark fields
+			// which are not part of the public zotero.Item type
+			// definition.
+			if (item.hasOwnProperty(k) && IGNORED_PROPS.indexOf(k) === -1) {
+				let value = (<any>item)[k];
+				if (typeof value !== 'undefined' && value !== null) {
+					(<any>resultItem)[k] = value;
+				}
+			}
+		}
 
-		// ignore private fields in zotero_item.Item() class.
-		// Possibly look into using TS decorators to mark fields
-		// which are not part of the public zotero.Item type
-		// definition.
-		delete (<any>item).context;
+		// sort tags alphabetically
+		resultItem.tags.sort();
+
+		// remove URLs from attachments
+		for (let i=0; i < resultItem.attachments.length; i++) {
+			delete resultItem.attachments[i].url;
+		}
+
+		return resultItem;
 	});
-	return items;
 }
 
 TEST_TRANSLATORS.forEach(translatorName => {
@@ -39,9 +62,10 @@ TEST_TRANSLATORS.forEach(translatorName => {
 		const translatorInstance = loadTranslatorFromFile(translatorPath);
 
 		translatorInstance.testCases.map(testCase => {
-			it(`should import from ${testCase}`, () => {
+			it(`should import from ${testCase.url}`, () => {
 				return translator.fetchItemsAtUrl(testCase.url, [translatorInstance]).then(items => {
-					expect(postProcessItems(items)).to.deep.equal(testCase.items);
+					let sanitizedItems = sanitizeItems(items);
+					expect(sanitizedItems).to.deep.equal(testCase.items);
 				});
 			});
 		});
