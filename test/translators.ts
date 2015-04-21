@@ -21,6 +21,11 @@ function loadTranslatorFromFile(path: string) {
 function postProcessItems(items: zotero.Item[]) {
 	items.forEach(item => {
 		item.tags.sort();
+
+		// ignore private fields in zotero_item.Item() class.
+		// Possibly look into using TS decorators to mark fields
+		// which are not part of the public zotero.Item type
+		// definition.
 		delete (<any>item).context;
 	});
 	return items;

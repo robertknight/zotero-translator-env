@@ -148,6 +148,9 @@ export function createEnvironment(translatorName: string) {
 		},
 		debug: () => {
 			// ignored
+		},
+		selectItems(items: zotero.Item[]) {
+			return items;
 		}
 	};
 
