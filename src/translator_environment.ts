@@ -5,6 +5,7 @@
 // https://github.com/zotero/zotero/tree/master/chrome/content/zotero/xpcom/translation
 
 import * as jsdom from 'jsdom';
+import * as rx from 'rx-lite';
 
 import * as zotero from './zotero_types';
 import {Item} from './zotero_item';
@@ -12,18 +13,15 @@ import {Item} from './zotero_item';
 var xpath = require('jsdom/lib/jsdom/level3/xpath');
 var ZoteroUtilities = require('./ZoteroUtilities');
 
-let savedItems: Q.Promise<zotero.Item>[] = [];
-let addItem = (item: Q.Promise<zotero.Item>) => {
-	savedItems.push(item);
-};
-
 interface TranslationContext {
 	currentUrl: string;
-	items: zotero.Item[];
+	items: rx.Observable<zotero.Item>;
 
+	reset(currentUrl: string): void;
 	saveItem(item: zotero.Item): void;
-	beginRequest(): void;
+	beginRequest(url: string): void;
 	endRequest(): void;
+	complete(): void;
 }
 
 /** API for the 'ZU'/'Zotero.Utilities' interface
@@ -44,7 +42,7 @@ export interface ZoteroGlobal {
 		new (type: string): zotero.Item;
 	},
 	Utilities: ZoteroUtilities
-	debug(message: any);
+	debug(message: any): void;
 }
 
 /** API for the global object exposed to translators
@@ -76,24 +74,65 @@ class DOMParser {
 	}
 }
 
-export function createEnvironment() {
-	let context: TranslationContext = {
-		currentUrl: '',
-		items: [],
+class TranslationContextImpl {
+	items: rx.Observable<zotero.Item>;
+	currentUrl: string;
 
-		saveItem: (item: zotero.Item) => {
-			console.log('context add item');
-		},
+	private done: boolean;
+	private observer: rx.Observer<zotero.Item>;
+	private requestsInFlight: number;
+	private pendingItems: zotero.Item[];
 
-		beginRequest: () => {
-			console.log('context.beginRequest');
-		},
+	constructor() {
+		this.reset('');
+	}
 
-		endRequest: () => {
-			console.log('context.endRequest');
+	reset(url: string) {
+		this.items = rx.Observable.create<zotero.Item>((observer) => {
+			this.observer = observer;
+			this.pendingItems.forEach(item => {
+				observer.onNext(item);
+			});
+			if (this.done && this.requestsInFlight === 0) {
+				observer.onCompleted();
+			}
+		});
+		this.currentUrl = '';
+		this.requestsInFlight = 0;
+		this.done = false;
+		this.pendingItems = [];
+		this.observer = null;
+	}
+
+	saveItem(item: zotero.Item) {
+		if (this.observer) {
+			this.observer.onNext(item);
+		} else {
+			this.pendingItems.push(item);
 		}
-	};
+	}
 
+	beginRequest(url: string) {
+		++this.requestsInFlight;
+	}
+
+	endRequest() {
+		--this.requestsInFlight;
+		if (this.done && this.requestsInFlight === 0) {
+			this.observer.onCompleted();
+		}
+	}
+
+	complete() {
+		this.done = true;
+		if (this.observer && this.requestsInFlight === 0) {
+			this.observer.onCompleted();
+		}
+	}
+}
+
+export function createEnvironment() {
+	let context = new TranslationContextImpl();
 	let zoteroGlobal = {
 		Item: Item.bind(null, context),
 		Utilities: {
@@ -101,15 +140,15 @@ export function createEnvironment() {
 			xpathText: ZoteroUtilities.xpathText,
 			trimInternal: ZoteroUtilities.trimInternal,
 			cleanAuthor: ZoteroUtilities.cleanAuthor,
-			doGet: ZoteroUtilities.doGet.bind(context)
+			doGet: ZoteroUtilities.doGet.bind(null, context)
 		},
-		debug: message => {
+		debug: () => {
 			// ignored
 		}
 	};
 
 	let translatorGlobal: TranslatorGlobal = {
-		ZU: ZoteroUtilities,
+		ZU: zoteroGlobal.Utilities,
 		Zotero: zoteroGlobal,
 		Z: zoteroGlobal,
 		

@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as jsdom from 'jsdom';
 import * as Q from 'q';
+import * as rx from 'rx-lite';
 
 import * as translator from './translator';
 import * as zotero from './zotero_types';
@@ -16,7 +17,7 @@ function loadTranslatorFromFile(path: string) {
 	return translator.loadTranslator(src);
 }
 
-let SUPPORTED_TRANSLATORS = ['Oxford University Press', 'The Times UK'];
+let SUPPORTED_TRANSLATORS = ['Oxford University Press', 'The Times UK', 'Google Books'];
 
 function loadTranslators() {
 	let translators: translator.Translator[] = [];
@@ -73,11 +74,11 @@ function findBestTranslator(url: string, document: Document, translators: transl
 	}
 }
 
-function fetchItemsAtUrl(url: string, translators: translator.Translator[]) {
+function fetchItemsAtUrl(url: string, translators: translator.Translator[]): Q.Promise<zotero.Item[]> {
 	console.log(`Fetching ${url}`);
-	return fetch(url).then(response => {
+	return fetch(url).then((response: any) => {
 		return response.text();
-	}).then(body => {
+	}).then((body: string) => {
 		// setup fake DOM environment.
 		// By default jsdom.jsdom() will fetch and execute any <script>
 		// tags that are referenced. For performance and security, we
@@ -93,12 +94,15 @@ function fetchItemsAtUrl(url: string, translators: translator.Translator[]) {
 		if (!translator) {
 			throw new Error(`No matching translator found for ${url}`);
 		}
+		
 		console.log(`Processing ${url} with translator ${translator.metadata.label}`);
-		return Q.all(translator.processPage(document, url));
+		let items = translator.processPage(document, url);
+
+		return items.toArray().toPromise();
 	});
 }
 
-let ZOTERO_TYPE_MAPPINGS = {
+let ZOTERO_TYPE_MAPPINGS: {[zoteroType: string]: string} = {
 	'book': 'book'
 };
 

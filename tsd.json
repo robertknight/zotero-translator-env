@@ -16,6 +16,12 @@
     },
     "jsdom/jsdom.d.ts": {
       "commit": "52fa2b9ce36f2c5843204e9bfbaada7cded9b47a"
+    },
+    "rx/rx.d.ts": {
+      "commit": "2c6d3c7ee23ee9eb51ea8e64f860a5131963e7eb"
+    },
+    "rx/rx-lite.d.ts": {
+      "commit": "2c6d3c7ee23ee9eb51ea8e64f860a5131963e7eb"
     }
   }
 }

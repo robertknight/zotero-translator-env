@@ -28,9 +28,14 @@ var XPathExtractor = exports.xpath = function XPathExtractor(elements, xpath, na
     }
 
     return lodash.reduce(elements, function(results, element) {
-		var root = element.ownerDocument;
-		var newElement;
+		var root;
+		if (element.ownerDocument) {
+			root = element.ownerDocument;
+		} else if (element.documentElement) {
+			root = element;
+		}
 
+		var newElement;
         if (!root) {
             throw new Error('xpath: First argument must be either element(s) or document(s)');
         }
@@ -168,9 +173,8 @@ var cleanAuthor = exports.cleanAuthor = function cleanAuthor(author, type, useCo
 
 // performs an async network GET request
 exports.doGet = function(context, relativeUrl, callback) {
-	context.beginRequest();
 	var absoluteUrl = urlLib.resolve(context.currentUrl, relativeUrl);
-	console.log('fetching', absoluteUrl);
+	context.beginRequest(absoluteUrl);
 	return fetch(absoluteUrl).then(function(response) {
 		return response.text();
 	}).then(function(body) {

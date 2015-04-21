@@ -1,11 +1,22 @@
 import * as vm from 'vm';
 import * as util from 'util';
+import * as rx from 'rx-lite';
 import * as Q from 'q';
 
 var stack_trace = require('stack-trace');
 
 import * as zotero from './zotero_types';
 import * as translator_environment from './translator_environment';
+
+interface CallStackEntry {
+	getTypeName(): string;
+	getFunctionName(): string;
+	getMethodName(): string;
+	getFileName(): string;
+	getLineNumber(): number;
+	getColumnNumber(): number;
+	isNative(): boolean;
+}
 
 function logTranslatorError(code: string, err: Error) {
 	let trace = stack_trace.parse(err);
@@ -15,7 +26,7 @@ function logTranslatorError(code: string, err: Error) {
 	// is set when the Script() object for it is created
 	let lines = code.split('\n');
 	let errLine = '';
-	trace.forEach(entry => {
+	trace.forEach((entry: CallStackEntry) => {
 		if (entry.getFileName().match(/<translator/)) {
 			errLine = lines[entry.getLineNumber()-1].trim();
 		}
@@ -57,17 +68,15 @@ export class Translator {
 	}
 
 	/** Process the given page and return all items found. */
-	processPage(document: Document, url: string): Q.Promise<zotero.Item>[] {
+	processPage(document: Document, url: string): rx.Observable<zotero.Item> {
 		try {
-			this.environment.context.items = [];
-			this.environment.context.currentUrl = url;
-
+			this.environment.context.reset(url);
 			this.translator.doWeb(document, url);
-
-			return this.environment.context.items.map(item => Q(item));
+			this.environment.context.complete();
+			return this.environment.context.items;
 		} catch (err) {
 			logTranslatorError(this.translator.code, err);
-			return null;
+			return rx.Observable.from([]);
 		}
 	}
 }
@@ -111,7 +120,7 @@ function splitSource(source: string): TranslatorSource {
 	let metadata = <zotero.TranslatorMetadata>JSON.parse(metadataJsonStr);
 
 	let testCases: zotero.TestCase[];
-	let translatorCodeEnd;
+	let translatorCodeEnd: number;
 
 	let testCaseSourceStart = source.indexOf('/** BEGIN TEST CASES **/');
 	if (testCaseSourceStart !== -1) {
