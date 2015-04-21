@@ -78,12 +78,14 @@ class TranslationContextImpl {
 	items: rx.Observable<zotero.Item>;
 	currentUrl: string;
 
+	private translatorName: string;
 	private done: boolean;
 	private observer: rx.Observer<zotero.Item>;
 	private requestsInFlight: number;
 	private pendingItems: zotero.Item[];
 
-	constructor() {
+	constructor(translatorName: string) {
+		this.translatorName = translatorName;
 		this.reset('');
 	}
 
@@ -105,6 +107,8 @@ class TranslationContextImpl {
 	}
 
 	saveItem(item: zotero.Item) {
+		item.libraryCatalog = this.translatorName;
+
 		if (this.observer) {
 			this.observer.onNext(item);
 		} else {
@@ -131,8 +135,8 @@ class TranslationContextImpl {
 	}
 }
 
-export function createEnvironment() {
-	let context = new TranslationContextImpl();
+export function createEnvironment(translatorName: string) {
+	let context = new TranslationContextImpl(translatorName);
 	let zoteroGlobal = {
 		Item: Item.bind(null, context),
 		Utilities: {

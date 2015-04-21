@@ -1,8 +1,10 @@
+import * as jsdom from 'jsdom';
 import * as vm from 'vm';
 import * as util from 'util';
 import * as rx from 'rx-lite';
 import * as Q from 'q';
 
+var fetch = require('isomorphic-fetch');
 var stack_trace = require('stack-trace');
 
 import * as zotero from './zotero_types';
@@ -42,16 +44,19 @@ function logTranslatorError(code: string, err: Error) {
   */
 export class Translator {
 	metadata: zotero.TranslatorMetadata;
+	testCases: zotero.TestCase[];
 
 	private translator: zotero.TranslatorImpl;
 	private environment: translator_environment.TranslatorGlobal;
 
 	constructor(metadata: zotero.TranslatorMetadata,
 	            translator: zotero.TranslatorImpl,
-				environment: translator_environment.TranslatorGlobal) {
+				environment: translator_environment.TranslatorGlobal,
+				testCases?: zotero.TestCase[]) {
 		this.metadata = metadata;
 		this.translator = translator;
 		this.environment = environment;
+		this.testCases = testCases;
 	}
 
 	/** Detect the type of item available to import on the given
@@ -154,7 +159,7 @@ function loadTranslatorModule(name: string, source: string) {
 	});
 	let savedItems: Q.Promise<zotero.Item>[] = [];
 	
-	let translatorGlobal = translator_environment.createEnvironment();
+	let translatorGlobal = translator_environment.createEnvironment(name);
 	let translatorContext = vm.createContext(translatorGlobal);
 	script.runInContext(translatorContext);
 	
@@ -185,6 +190,78 @@ export function loadTranslator(source: string): Translator {
 	                                      translatorSource.translatorCode);
 	return new Translator(translatorSource.metadata,
 	                      translator.impl,
-	                      translator.environment);
+	                      translator.environment,
+	                      translatorSource.testCases);
+}
+
+interface ScoredTranslator {
+	translator: Translator;
+	score: number;
+}
+
+function findBestTranslator(url: string, document: Document, translators: Translator[]) {
+	let scoredTranslators: ScoredTranslator[] = [];
+	console.log('finding translator for', url);
+	translators.forEach(tr => {
+		if (tr.metadata.target) {
+			let targetRegEx = new RegExp(tr.metadata.target);
+			if (!url.match(targetRegEx)) {
+				console.log(`${tr.metadata.label} does not match ${tr.metadata.target}`);
+				return;
+			}
+		}
+		let itemType = tr.detectAvailableItemType(document, url);
+		if (!itemType) {
+			console.log(`${tr.metadata.label} did not find an item type for ${url}`);
+			return;
+		}
+		scoredTranslators.push({
+			translator: tr,
+			score: tr.metadata.priority
+		});
+	});
+	scoredTranslators.sort((a, b) => {
+		if (a.score < b.score) {
+			return -1;
+		} else if (a.score === b.score) {
+			return 0;
+		} else {
+			return 1;
+		}
+	});
+
+	if (scoredTranslators.length > 0) {
+		return scoredTranslators[0].translator;
+	} else {
+		return null;
+	}
+}
+
+export function fetchItemsAtUrl(url: string, translators: Translator[]): Q.Promise<zotero.Item[]> {
+	console.log(`Fetching ${url}`);
+	return fetch(url).then((response: any) => {
+		return response.text();
+	}).then((body: string) => {
+		// setup fake DOM environment.
+		// By default jsdom.jsdom() will fetch and execute any <script>
+		// tags that are referenced. For performance and security, we
+		// disable this.
+		let document = jsdom.jsdom(body, {
+			features: {
+				FetchExternalResources: [],
+				ProcessExternalResources: false
+			}
+		});
+
+		let translator = findBestTranslator(url, document, translators);
+		if (!translator) {
+			throw new Error(`No matching translator found for ${url}`);
+		}
+		
+		console.log(`Processing ${url} with translator ${translator.metadata.label}`);
+		let items = translator.processPage(document, url);
+
+		return items.toArray().toPromise();
+	});
 }
 

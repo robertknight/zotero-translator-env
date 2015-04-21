@@ -3,14 +3,9 @@
 import * as express from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as jsdom from 'jsdom';
-import * as Q from 'q';
-import * as rx from 'rx-lite';
 
 import * as translator from './translator';
 import * as zotero from './zotero_types';
-
-var fetch = require('isomorphic-fetch');
 
 function loadTranslatorFromFile(path: string) {
 	let src = fs.readFileSync(path).toString();
@@ -23,83 +18,12 @@ function loadTranslators() {
 	let translators: translator.Translator[] = [];
 
 	SUPPORTED_TRANSLATORS.forEach(name => {
-		const translatorPath = path.resolve(`${__dirname}/../translators/${name}.js`);
+		const translatorPath = path.resolve(`${__dirname}/../../translators/${name}.js`);
 		const translator = loadTranslatorFromFile(translatorPath);
 		translators.push(translator);
 	});
 
 	return translators;
-}
-
-interface ScoredTranslator {
-	translator: translator.Translator;
-	score: number;
-}
-
-function findBestTranslator(url: string, document: Document, translators: translator.Translator[]) {
-	let scoredTranslators: ScoredTranslator[] = [];
-	console.log('finding translator for', url);
-	translators.forEach(tr => {
-		if (tr.metadata.target) {
-			let targetRegEx = new RegExp(tr.metadata.target);
-			if (!url.match(targetRegEx)) {
-				console.log(`${tr.metadata.label} does not match ${tr.metadata.target}`);
-				return;
-			}
-		}
-		let itemType = tr.detectAvailableItemType(document, url);
-		if (!itemType) {
-			console.log(`${tr.metadata.label} did not find an item type for ${url}`);
-			return;
-		}
-		scoredTranslators.push({
-			translator: tr,
-			score: tr.metadata.priority
-		});
-	});
-	scoredTranslators.sort((a, b) => {
-		if (a.score < b.score) {
-			return -1;
-		} else if (a.score === b.score) {
-			return 0;
-		} else {
-			return 1;
-		}
-	});
-
-	if (scoredTranslators.length > 0) {
-		return scoredTranslators[0].translator;
-	} else {
-		return null;
-	}
-}
-
-function fetchItemsAtUrl(url: string, translators: translator.Translator[]): Q.Promise<zotero.Item[]> {
-	console.log(`Fetching ${url}`);
-	return fetch(url).then((response: any) => {
-		return response.text();
-	}).then((body: string) => {
-		// setup fake DOM environment.
-		// By default jsdom.jsdom() will fetch and execute any <script>
-		// tags that are referenced. For performance and security, we
-		// disable this.
-		let document = jsdom.jsdom(body, {
-			features: {
-				FetchExternalResources: [],
-				ProcessExternalResources: false
-			}
-		});
-
-		let translator = findBestTranslator(url, document, translators);
-		if (!translator) {
-			throw new Error(`No matching translator found for ${url}`);
-		}
-		
-		console.log(`Processing ${url} with translator ${translator.metadata.label}`);
-		let items = translator.processPage(document, url);
-
-		return items.toArray().toPromise();
-	});
 }
 
 let ZOTERO_TYPE_MAPPINGS: {[zoteroType: string]: string} = {
@@ -155,7 +79,7 @@ function runServer() {
 	});
 	app.get('/metadata/extract', (req, res) => {
 		let url = req.query.url;
-		fetchItemsAtUrl(url, translators).then(items => {
+		translator.fetchItemsAtUrl(url, translators).then(items => {
 			let mendeleyDocs = items.map(item => convertZoteroItemToMendeleyDocument(item));
 			res.send(mendeleyDocs);
 		}).catch(err => {
