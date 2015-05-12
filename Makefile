@@ -16,5 +16,5 @@ typings/DefinitelyTyped: tsd.json
 	touch typings/DefinitelyTyped
 
 test: build/server.js
-	$(NODE_BIN)/mocha build/test/*.js
+	iojs $(NODE_BIN)/mocha build/test/*.js
 
